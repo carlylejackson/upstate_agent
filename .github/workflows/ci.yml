@@ -13,14 +13,8 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install
-        run: |
-          cd upstate_agent
-          pip install -e .[dev]
+        run: pip install -e .[dev]
       - name: Lint
-        run: |
-          cd upstate_agent
-          ruff check app tests
+        run: ruff check app tests
       - name: Test
-        run: |
-          cd upstate_agent
-          pytest
+        run: pytest
