@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from app.api.routes import admin, chat, escalation, health, sms, voice
 from app.core.config import get_settings
 from app.core.logging import configure_logging
-from app.core.middleware import RequestContextMiddleware
+from app.core.middleware import RateLimitMiddleware, RequestContextMiddleware
 from app.db.init_db import init_db
 from app.db.session import get_session_factory
 
@@ -32,12 +32,13 @@ def create_app() -> FastAPI:
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=settings.cors_origins_list,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
     app.add_middleware(RequestContextMiddleware)
+    app.add_middleware(RateLimitMiddleware)
 
     app.include_router(health.router)
     app.include_router(chat.router)
