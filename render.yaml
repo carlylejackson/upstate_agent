@@ -16,6 +16,8 @@ services:
         value: production
       - key: LOG_LEVEL
         value: INFO
+      - key: CORS_ORIGINS
+        sync: false
       - key: DEFAULT_MODEL
         value: gpt-4.1-mini
       - key: FALLBACK_MODEL
@@ -54,6 +56,12 @@ services:
         value: "true"
       - key: PHI_REDACTION_ENABLED
         value: "true"
+      - key: RATE_LIMIT_ENABLED
+        value: "true"
+      - key: RATE_LIMIT_REQUESTS_PER_MINUTE
+        value: "300"
+      - key: RATE_LIMIT_EXEMPT_PATHS
+        value: "/,/v1/health,/v1/metrics,/docs,/openapi.json,/chat-test"
 
 databases:
   - name: upstate-agent-db

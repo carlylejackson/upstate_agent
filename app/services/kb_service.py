@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 import requests
 from bs4 import BeautifulSoup
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -114,6 +114,7 @@ class KBService:
         approved: bool,
         version: str,
     ) -> int:
+        vector_literal = self._to_pgvector_literal(embedding)
         existing = self.db.scalar(select(KBChunk).where(KBChunk.chunk_id == chunk_id))
         if existing:
             existing.content = content
@@ -121,6 +122,8 @@ class KBService:
             existing.embedding_json = embedding
             existing.approved = approved
             existing.version = version
+            self.db.flush()
+            self._write_vector_column(chunk_id=chunk_id, vector_literal=vector_literal)
             return 1
 
         self.db.add(
@@ -135,4 +138,32 @@ class KBService:
                 version=version,
             )
         )
+        self.db.flush()
+        self._write_vector_column(chunk_id=chunk_id, vector_literal=vector_literal)
         return 1
+
+    @staticmethod
+    def _to_pgvector_literal(embedding: list[float] | None) -> str | None:
+        if not embedding:
+            return None
+        return "[" + ",".join(f"{value:.10f}" for value in embedding) + "]"
+
+    def _write_vector_column(self, chunk_id: str, vector_literal: str | None) -> None:
+        if not vector_literal:
+            return
+        if not self.db.bind or self.db.bind.dialect.name != "postgresql":
+            return
+        try:
+            self.db.execute(
+                text(
+                    """
+                    UPDATE kb_chunks
+                    SET embedding = CAST(:embedding AS vector)
+                    WHERE chunk_id = :chunk_id
+                    """
+                ),
+                {"embedding": vector_literal, "chunk_id": chunk_id},
+            )
+        except Exception:  # noqa: BLE001
+            # Keep ingestion resilient; retrieval will fall back to lexical mode if vector write fails.
+            return

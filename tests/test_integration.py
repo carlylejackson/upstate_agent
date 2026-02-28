@@ -1,5 +1,7 @@
 import os
 
+from fastapi.testclient import TestClient
+
 
 def test_root_and_chat_test_page(client):
     root = client.get("/")
@@ -76,3 +78,57 @@ def test_sms_signature_validation_accepts_valid_signature(client):
 
     os.environ["TWILIO_VALIDATE_SIGNATURES"] = "false"
     get_settings.cache_clear()
+
+
+def test_rate_limit_enforced_for_non_exempt_path(tmp_path):
+    os.environ["DATABASE_URL"] = f"sqlite:///{tmp_path / 'rate_limit.db'}"
+    os.environ["RATE_LIMIT_ENABLED"] = "true"
+    os.environ["RATE_LIMIT_REQUESTS_PER_MINUTE"] = "2"
+    os.environ["RATE_LIMIT_EXEMPT_PATHS"] = "/v1/health,/v1/metrics"
+
+    from app.core.config import get_settings
+    from app.db.session import get_engine, get_session_factory
+
+    get_settings.cache_clear()
+    get_engine.cache_clear()
+    get_session_factory.cache_clear()
+
+    from app.main import create_app
+
+    app = create_app()
+    with TestClient(app) as local_client:
+        first = local_client.post("/v1/chat/session", json={"channel": "web"})
+        second = local_client.post("/v1/chat/session", json={"channel": "web"})
+        third = local_client.post("/v1/chat/session", json={"channel": "web"})
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert third.status_code == 429
+
+
+def test_cors_allowlist_applies_in_production(tmp_path):
+    os.environ["DATABASE_URL"] = f"sqlite:///{tmp_path / 'cors.db'}"
+    os.environ["APP_ENV"] = "production"
+    os.environ["CORS_ORIGINS"] = "https://www.upstatehearingandbalance.com"
+
+    from app.core.config import get_settings
+    from app.db.session import get_engine, get_session_factory
+
+    get_settings.cache_clear()
+    get_engine.cache_clear()
+    get_session_factory.cache_clear()
+
+    from app.main import create_app
+
+    app = create_app()
+    with TestClient(app) as local_client:
+        response = local_client.options(
+            "/v1/health",
+            headers={
+                "Origin": "https://www.upstatehearingandbalance.com",
+                "Access-Control-Request-Method": "GET",
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.headers.get("access-control-allow-origin") == "https://www.upstatehearingandbalance.com"

@@ -63,7 +63,8 @@ class RetrievalService:
         Uses SQL fallback if vector column exists; otherwise returns empty and caller falls back to lexical search.
         """
         query_embedding = self.llm.embed_text(query)
-        if not query_embedding:
+        vector_literal = self._to_pgvector_literal(query_embedding)
+        if not vector_literal:
             return []
 
         # This assumes a future migration with `embedding vector` column. If missing, the query fails gracefully.
@@ -80,7 +81,7 @@ class RetrievalService:
             rows = self.db.execute(
                 statement,
                 {
-                    "embedding": str(query_embedding),
+                    "embedding": vector_literal,
                     "limit": top_k,
                 },
             ).all()
@@ -96,3 +97,9 @@ class RetrievalService:
             }
             for row in rows
         ]
+
+    @staticmethod
+    def _to_pgvector_literal(embedding: list[float] | None) -> str | None:
+        if not embedding:
+            return None
+        return "[" + ",".join(f"{value:.10f}" for value in embedding) + "]"

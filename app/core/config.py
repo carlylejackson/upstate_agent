@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     app_env: str = "development"
     log_level: str = "INFO"
     database_url: str = "sqlite:///./upstate_agent.db"
+    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:8000,http://127.0.0.1:8000"
 
     openai_api_key: str | None = None
     default_model: str = "gpt-4.1-mini"
@@ -32,6 +33,10 @@ class Settings(BaseSettings):
     smtp_use_tls: bool = True
     escalation_email_to: str = "frontdesk@example.com"
     escalation_email_from: str = "bot@example.com"
+
+    rate_limit_enabled: bool = True
+    rate_limit_requests_per_minute: int = 300
+    rate_limit_exempt_paths: str = "/,/v1/health,/v1/metrics,/docs,/openapi.json,/chat-test"
 
     kb_source_urls: str = (
         "https://www.upstatehearingandbalance.com/,"
@@ -65,6 +70,18 @@ class Settings(BaseSettings):
     @property
     def kb_source_urls_list(self) -> list[str]:
         return [item.strip() for item in self.kb_source_urls.split(",") if item.strip()]
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        if self.app_env == "production":
+            return [item.strip() for item in self.cors_origins.split(",") if item.strip()]
+        dev_defaults = ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:8000", "http://127.0.0.1:8000"]
+        custom = [item.strip() for item in self.cors_origins.split(",") if item.strip()]
+        return sorted(set(dev_defaults + custom))
+
+    @property
+    def rate_limit_exempt_paths_list(self) -> list[str]:
+        return [item.strip() for item in self.rate_limit_exempt_paths.split(",") if item.strip()]
 
 
 @lru_cache(maxsize=1)
