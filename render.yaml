@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: upstate-agent-api
+    env: python
+    buildCommand: "pip install -e ."
+    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: upstate-agent-db
+          property: connectionString
+      - key: APP_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+
+databases:
+  - name: upstate-agent-db
