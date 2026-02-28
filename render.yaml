@@ -2,8 +2,11 @@ services:
   - type: web
     name: upstate-agent-api
     env: python
+    plan: starter
+    autoDeploy: true
     buildCommand: "pip install -e ."
     startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: "/v1/health"
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -13,6 +16,45 @@ services:
         value: production
       - key: LOG_LEVEL
         value: INFO
+      - key: DEFAULT_MODEL
+        value: gpt-4.1-mini
+      - key: FALLBACK_MODEL
+        value: gpt-4.1
+      - key: EMBEDDING_MODEL
+        value: text-embedding-3-small
+      - key: TWILIO_VALIDATE_SIGNATURES
+        value: "false"
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ADMIN_API_KEY
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_PHONE_NUMBER
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_USE_TLS
+        value: "true"
+      - key: ESCALATION_EMAIL_TO
+        sync: false
+      - key: ESCALATION_EMAIL_FROM
+        sync: false
+      - key: KB_SOURCE_URLS
+        value: "https://www.upstatehearingandbalance.com/,https://www.upstatehearingandbalance.com/contact-us,https://www.upstatehearingandbalance.com/services,https://www.upstatehearingandbalance.com/insurance-financing"
+      - key: MANUAL_POLICY_APPROVAL
+        value: "true"
+      - key: PHI_REDACTION_ENABLED
+        value: "true"
 
 databases:
   - name: upstate-agent-db
+    plan: starter
