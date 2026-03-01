@@ -9,6 +9,7 @@ from app.db.session import get_db
 from app.integrations.twilio_security import validate_twilio_request
 from app.integrations.twilio_xml import twiml_message
 from app.services.orchestration import AgentOrchestrator
+from app.services.privacy_service import PrivacyService
 
 router = APIRouter(prefix="/v1/sms", tags=["sms"])
 
@@ -32,6 +33,8 @@ def twilio_sms_webhook(
     )
 
     phone_hash = _hash_phone(from_number)
+    privacy_service = PrivacyService()
+    screened = privacy_service.screen_inbound(body, "sms")
     session = db.scalar(select(ConversationSession).where(ConversationSession.phone_hash == phone_hash))
     if not session:
         session = ConversationSession(channel="sms", phone_hash=phone_hash)
@@ -40,7 +43,7 @@ def twilio_sms_webhook(
         db.refresh(session)
 
     db.add(
-        ConversationMessage(session_id=session.id, channel="sms", role="user", text=body)
+        ConversationMessage(session_id=session.id, channel="sms", role="user", text=screened.redacted_text)
     )
     db.commit()
 

@@ -80,6 +80,40 @@ def test_sms_signature_validation_accepts_valid_signature(client):
     get_settings.cache_clear()
 
 
+def test_sms_inbound_message_redacted_in_storage(client):
+    from app.db.models import ConversationMessage
+    from app.db.session import get_session_factory
+
+    response = client.post(
+        "/v1/sms/webhook/twilio",
+        data={"From": "+18645551234", "Body": "My phone is 864-770-8822 and email test@example.com"},
+    )
+    assert response.status_code == 200
+
+    db = get_session_factory()()
+    try:
+        msg = (
+            db.query(ConversationMessage)
+            .filter(ConversationMessage.channel == "sms", ConversationMessage.role == "user")
+            .order_by(ConversationMessage.id.desc())
+            .first()
+        )
+        assert msg is not None
+        assert "[REDACTED_PHONE]" in msg.text
+        assert "[REDACTED_EMAIL]" in msg.text
+    finally:
+        db.close()
+
+
+def test_sms_non_phi_handoff_template(client):
+    response = client.post(
+        "/v1/sms/webhook/twilio",
+        data={"From": "+18645551234", "Body": "I have tinnitus and dizziness for a week"},
+    )
+    assert response.status_code == 200
+    assert "do not share health details by text" in response.text.lower()
+
+
 def test_rate_limit_enforced_for_non_exempt_path(tmp_path):
     os.environ["DATABASE_URL"] = f"sqlite:///{tmp_path / 'rate_limit.db'}"
     os.environ["RATE_LIMIT_ENABLED"] = "true"

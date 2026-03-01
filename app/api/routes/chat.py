@@ -14,6 +14,7 @@ from app.schemas.chat import (
     SessionResponse,
 )
 from app.services.orchestration import AgentOrchestrator
+from app.services.privacy_service import PrivacyService
 
 router = APIRouter(prefix="/v1/chat", tags=["chat"])
 
@@ -51,12 +52,15 @@ def send_message(payload: ChatMessageRequest, db: Session = Depends(get_db)) -> 
         session.consent_to_contact = payload.consent_to_contact
         db.commit()
 
+    privacy_service = PrivacyService()
+    screened = privacy_service.screen_inbound(payload.text, payload.channel)
+
     db.add(
         ConversationMessage(
             session_id=session.id,
             channel=payload.channel,
             role="user",
-            text=payload.text,
+            text=screened.redacted_text,
         )
     )
     db.commit()
@@ -83,7 +87,7 @@ def send_message(payload: ChatMessageRequest, db: Session = Depends(get_db)) -> 
             LeadCapture(
                 session_id=session.id,
                 phone=phone_match.group(0) if phone_match else None,
-                reason=payload.text,
+                reason=screened.redacted_text,
                 consent=True,
                 status="new",
             )

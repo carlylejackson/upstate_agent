@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.services.escalation_service import EscalationService
 from app.services.llm_service import LLMService
 from app.services.policy_service import PolicyService
+from app.services.privacy_service import PrivacyService
 from app.services.retrieval_service import RetrievalService
 
 
@@ -21,6 +22,7 @@ class AgentState(TypedDict, total=False):
     response_text: str
     escalated: bool
     escalation_reason: str | None
+    escalation_excerpt: str | None
 
 
 @dataclass
@@ -40,11 +42,13 @@ class AgentOrchestrator:
         self.retrieval_service = RetrievalService(db)
         self.llm_service = LLMService()
         self.escalation_service = EscalationService(db)
+        self.privacy_service = PrivacyService()
         self.policies = self.policy_service.get_active_policies()
         self.graph = self._build_graph()
 
     def _build_graph(self):
         graph = StateGraph(AgentState)
+        graph.add_node("compliance", self._compliance)
         graph.add_node("deterministic", self._deterministic)
         graph.add_node("intent", self._intent)
         graph.add_node("retrieve", self._retrieve)
@@ -53,7 +57,12 @@ class AgentOrchestrator:
         graph.add_node("escalate", self._escalate)
         graph.add_node("finalize", self._finalize)
 
-        graph.add_edge(START, "deterministic")
+        graph.add_edge(START, "compliance")
+        graph.add_conditional_edges(
+            "compliance",
+            self._route_after_compliance,
+            {"deterministic": "deterministic", "escalate": "escalate"},
+        )
         graph.add_conditional_edges(
             "deterministic",
             self._route_after_deterministic,
@@ -96,6 +105,33 @@ class AgentOrchestrator:
             }
         return {"deterministic_response": None}
 
+    def _compliance(self, state: AgentState) -> AgentState:
+        screen = self.privacy_service.screen_inbound(state["query"], state.get("channel", "web"))
+        if not screen.restricted:
+            return {"escalation_excerpt": screen.redacted_text}
+
+        if screen.reason == "clinical_risk_or_emergency":
+            text = self.policies.get(
+                "emergency_disclaimer",
+                "I can't provide emergency medical advice. If this is urgent or severe, call 911.",
+            )
+            intent = "clinical_risk_or_emergency"
+        else:
+            text = (
+                f"{self.privacy_service.non_phi_handoff_message(state.get('channel', 'web'))} "
+                "If you'd like, share your best callback number and preferred time."
+            )
+            intent = "other_unknown"
+        return {
+            "intent": intent,
+            "confidence": 1.0,
+            "references": [],
+            "response_text": text.strip(),
+            "escalated": True,
+            "escalation_reason": screen.reason,
+            "escalation_excerpt": screen.redacted_text,
+        }
+
     def _intent(self, state: AgentState) -> AgentState:
         intent, confidence = self.llm_service.classify_intent(state["query"])
         return {"intent": intent, "confidence": confidence}
@@ -114,6 +150,7 @@ class AgentOrchestrator:
             intent=state.get("intent", "other_unknown"),
             references=state.get("references", []),
             policies=self.policies,
+            channel=state.get("channel", "web"),
         )
         return {"response_text": text}
 
@@ -173,11 +210,14 @@ class AgentOrchestrator:
         return {"escalated": state.get("escalated", False)}
 
     def _escalate(self, state: AgentState) -> AgentState:
+        reason = state.get("escalation_reason") or "manual_review"
+        priority = "high" if reason == "clinical_risk_or_emergency" else "medium"
         ticket = self.escalation_service.create_ticket(
             session_id=state["session_id"],
             channel=state["channel"],
-            reason=state.get("escalation_reason") or "manual_review",
-            conversation_excerpt=state["query"],
+            reason=reason,
+            conversation_excerpt=state.get("escalation_excerpt") or state["query"],
+            priority=priority,
         )
         response = state.get("response_text") or (
             "I have escalated this to our team. "
@@ -197,6 +237,12 @@ class AgentOrchestrator:
             "escalated": bool(state.get("escalated", False)),
             "escalation_reason": state.get("escalation_reason"),
         }
+
+    @staticmethod
+    def _route_after_compliance(state: AgentState) -> str:
+        if state.get("escalated"):
+            return "escalate"
+        return "deterministic"
 
     @staticmethod
     def _route_after_deterministic(state: AgentState) -> str:
