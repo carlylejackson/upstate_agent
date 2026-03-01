@@ -34,6 +34,7 @@ Test UI:
 
 - Deterministic business facts (hours, phone, address) are served from policy table.
 - Phase 1 defaults to `COMPLIANCE_MODE=non_phi` with medical-content short-circuit and redacted inbound storage.
+- `POST /v1/escalations` now requires `X-Escalation-Key`.
 - No diagnosis responses are allowed; emergency patterns trigger escalation.
 - Works with SQLite for local dev and PostgreSQL/pgvector in production.
 - Production steps are documented in `docs/DEPLOYMENT_RUNBOOK.md`.

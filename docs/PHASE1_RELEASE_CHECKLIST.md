@@ -21,14 +21,18 @@ Release Phase 1 safely with non-PHI behavior enforced across web and SMS.
 ## 3) Production env checklist (Render)
 Set or confirm:
 1. `APP_ENV=production`
-2. `COMPLIANCE_MODE=non_phi`
-3. `REDACT_STORED_MESSAGES=true`
-4. `NON_PHI_HANDOFF_MESSAGE=<approved web copy>`
-5. `NON_PHI_HANDOFF_MESSAGE_SMS=<approved sms copy>`
-6. `RETENTION_DAYS_MESSAGES=30` (or your approved number)
-7. `RETENTION_DAYS_ESCALATIONS=90` (or your approved number)
-8. `TWILIO_VALIDATE_SIGNATURES=true`
-9. `CORS_ORIGINS=<strict website origins>`
+2. `ADMIN_API_KEY=<strong-random>` or `ADMIN_API_KEYS=<comma-separated-strong-random-values>`
+3. `ESCALATION_API_KEY=<strong-random>`
+4. `COMPLIANCE_MODE=non_phi`
+5. `REDACT_STORED_MESSAGES=true`
+6. `NON_PHI_HANDOFF_MESSAGE=<approved web copy>`
+7. `NON_PHI_HANDOFF_MESSAGE_SMS=<approved sms copy>`
+8. `RETENTION_DAYS_MESSAGES=30` (or your approved number)
+9. `RETENTION_DAYS_ESCALATIONS=90` (or your approved number)
+10. `ESCALATION_EMAIL_INCLUDE_EXCERPT=false`
+11. `ESCALATION_EMAIL_EXCERPT_MAX_CHARS=160` (or lower)
+12. `TWILIO_VALIDATE_SIGNATURES=true`
+13. `CORS_ORIGINS=<strict website origins>`
 
 ## 4) Post-deploy smoke tests (system checks)
 Use your deployed docs or API client.
@@ -49,6 +53,8 @@ Use your deployed docs or API client.
 6. Retention endpoint:
    - `POST /v1/admin/privacy/retention-run` dry-run first.
    - Validate counts and run execute mode when approved.
+7. Escalation endpoint auth:
+   - `POST /v1/escalations` without `X-Escalation-Key` should return `401`.
 
 ## 5) Rollback triggers
 Rollback immediately if:

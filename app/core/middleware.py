@@ -32,6 +32,18 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.settings = get_settings()
         self._buckets: dict[str, deque[float]] = defaultdict(deque)
         self._lock = Lock()
+        self._redis = None
+        self._redis_enabled = False
+        redis_url = getattr(self.settings, "redis_url", None)
+        if redis_url:
+            try:
+                from redis import Redis
+
+                self._redis = Redis.from_url(redis_url, decode_responses=True)
+                self._redis_enabled = True
+            except Exception:  # noqa: BLE001
+                self._redis = None
+                self._redis_enabled = False
 
     async def dispatch(self, request: Request, call_next):
         if not self.settings.rate_limit_enabled:
@@ -46,6 +58,24 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         now = time.time()
         window_seconds = 60
         max_requests = max(1, self.settings.rate_limit_requests_per_minute)
+
+        if self._redis_enabled and self._redis is not None:
+            try:
+                redis_key = f"ratelimit:{key}:{int(now // window_seconds)}"
+                count = self._redis.incr(redis_key)
+                if count == 1:
+                    self._redis.expire(redis_key, window_seconds)
+                if count > max_requests:
+                    return JSONResponse(
+                        status_code=429,
+                        content={
+                            "detail": "Rate limit exceeded. Please retry shortly.",
+                            "limit_per_minute": max_requests,
+                        },
+                    )
+                return await call_next(request)
+            except Exception:  # noqa: BLE001
+                pass
 
         with self._lock:
             bucket = self._buckets[key]
