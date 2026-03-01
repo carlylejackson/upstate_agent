@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.core.security import verify_escalation_key
 from app.db.session import get_db
 from app.schemas.escalation import EscalationRequest, EscalationResponse
 from app.services.escalation_service import EscalationService
 
-router = APIRouter(prefix="/v1", tags=["escalation"])
+router = APIRouter(prefix="/v1", tags=["escalation"], dependencies=[Depends(verify_escalation_key)])
 
 
 @router.post("/escalations", response_model=EscalationResponse)

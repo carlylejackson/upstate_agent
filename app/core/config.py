@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     embedding_model: str = "text-embedding-3-small"
 
     admin_api_key: str = "change-me"
+    admin_api_keys: str = ""
+    escalation_api_key: str = "change-me-escalation"
     phi_redaction_enabled: bool = True
     compliance_mode: str = "non_phi"
     redact_stored_messages: bool = True
@@ -36,7 +38,7 @@ class Settings(BaseSettings):
     twilio_account_sid: str | None = None
     twilio_auth_token: str | None = None
     twilio_phone_number: str | None = None
-    twilio_validate_signatures: bool = False
+    twilio_validate_signatures: bool = True
 
     smtp_host: str | None = None
     smtp_port: int = 587
@@ -45,10 +47,13 @@ class Settings(BaseSettings):
     smtp_use_tls: bool = True
     escalation_email_to: str = "frontdesk@example.com"
     escalation_email_from: str = "bot@example.com"
+    escalation_email_include_excerpt: bool = False
+    escalation_email_excerpt_max_chars: int = 160
 
     rate_limit_enabled: bool = True
     rate_limit_requests_per_minute: int = 300
     rate_limit_exempt_paths: str = "/,/v1/health,/v1/metrics,/docs,/openapi.json,/chat-test"
+    redis_url: str | None = None
 
     kb_source_urls: str = (
         "https://www.upstatehearingandbalance.com/,"
@@ -94,6 +99,24 @@ class Settings(BaseSettings):
     @property
     def rate_limit_exempt_paths_list(self) -> list[str]:
         return [item.strip() for item in self.rate_limit_exempt_paths.split(",") if item.strip()]
+
+    @property
+    def admin_api_keys_list(self) -> list[str]:
+        keys = [item.strip() for item in self.admin_api_keys.split(",") if item.strip()]
+        if keys:
+            return keys
+        return [self.admin_api_key]
+
+    def validate_production_safety(self) -> None:
+        if self.app_env != "production":
+            return
+        weak_admin = any(key in {"", "change-me"} for key in self.admin_api_keys_list)
+        if weak_admin:
+            raise ValueError("Unsafe admin API key for production")
+        if self.escalation_api_key in {"", "change-me-escalation"}:
+            raise ValueError("Unsafe escalation API key for production")
+        if "*" in self.cors_origins:
+            raise ValueError("Unsafe CORS wildcard for production")
 
 
 @lru_cache(maxsize=1)

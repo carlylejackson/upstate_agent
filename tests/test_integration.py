@@ -166,3 +166,26 @@ def test_cors_allowlist_applies_in_production(tmp_path):
 
     assert response.status_code == 200
     assert response.headers.get("access-control-allow-origin") == "https://www.upstatehearingandbalance.com"
+
+
+def test_create_app_rejects_unsafe_prod_defaults(tmp_path):
+    os.environ["DATABASE_URL"] = f"sqlite:///{tmp_path / 'prod_safety.db'}"
+    os.environ["APP_ENV"] = "production"
+    os.environ["ADMIN_API_KEY"] = "change-me"
+    os.environ["ESCALATION_API_KEY"] = "change-me-escalation"
+    os.environ["CORS_ORIGINS"] = "https://www.upstatehearingandbalance.com"
+
+    from app.core.config import get_settings
+    from app.db.session import get_engine, get_session_factory
+
+    get_settings.cache_clear()
+    get_engine.cache_clear()
+    get_session_factory.cache_clear()
+
+    from app.main import create_app
+
+    try:
+        create_app()
+        raise AssertionError("Expected production safety validation to fail")
+    except ValueError as exc:
+        assert "Unsafe admin API key" in str(exc) or "Unsafe escalation API key" in str(exc)

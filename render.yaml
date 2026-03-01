@@ -18,6 +18,10 @@ services:
         value: INFO
       - key: CORS_ORIGINS
         sync: false
+      - key: ESCALATION_API_KEY
+        sync: false
+      - key: ADMIN_API_KEYS
+        sync: false
       - key: DEFAULT_MODEL
         value: gpt-4.1-mini
       - key: FALLBACK_MODEL
@@ -25,7 +29,21 @@ services:
       - key: EMBEDDING_MODEL
         value: text-embedding-3-small
       - key: TWILIO_VALIDATE_SIGNATURES
+        value: "true"
+      - key: COMPLIANCE_MODE
+        value: "non_phi"
+      - key: REDACT_STORED_MESSAGES
+        value: "true"
+      - key: RETENTION_DAYS_MESSAGES
+        value: "30"
+      - key: RETENTION_DAYS_ESCALATIONS
+        value: "90"
+      - key: ESCALATION_EMAIL_INCLUDE_EXCERPT
         value: "false"
+      - key: ESCALATION_EMAIL_EXCERPT_MAX_CHARS
+        value: "160"
+      - key: REDIS_URL
+        sync: false
       - key: OPENAI_API_KEY
         sync: false
       - key: ADMIN_API_KEY

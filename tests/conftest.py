@@ -10,6 +10,8 @@ def client(tmp_path: Path):
     db_path = tmp_path / "test_upstate_agent.db"
     os.environ["DATABASE_URL"] = f"sqlite:///{db_path}"
     os.environ["ADMIN_API_KEY"] = "test-admin-key"
+    os.environ["ESCALATION_API_KEY"] = "test-escalation-key"
+    os.environ["APP_ENV"] = "development"
     os.environ["OPENAI_API_KEY"] = ""
     os.environ["TWILIO_VALIDATE_SIGNATURES"] = "false"
     os.environ["TWILIO_AUTH_TOKEN"] = "test-token"

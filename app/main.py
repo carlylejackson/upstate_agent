@@ -26,6 +26,7 @@ async def lifespan(_: FastAPI):
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    settings.validate_production_safety()
     configure_logging(settings.log_level)
 
     app = FastAPI(title="Upstate Agent API", version="0.1.0", lifespan=lifespan)

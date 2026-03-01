@@ -67,6 +67,38 @@ def test_admin_policy_requires_key(client):
     assert response.status_code == 401
 
 
+def test_escalation_requires_key(client):
+    response = client.post(
+        "/v1/escalations",
+        json={
+            "session_id": "session-x",
+            "channel": "web",
+            "reason": "manual_review",
+            "conversation_excerpt": "test",
+            "priority": "medium",
+        },
+    )
+    assert response.status_code == 401
+
+
+def test_escalation_with_key(client):
+    response = client.post(
+        "/v1/escalations",
+        headers={"X-Escalation-Key": "test-escalation-key"},
+        json={
+            "session_id": "session-x",
+            "channel": "web",
+            "reason": "manual_review",
+            "conversation_excerpt": "Email user@example.com",
+            "priority": "medium",
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "open"
+    assert body["ticket_id"]
+
+
 def test_admin_policy_update_with_key(client):
     response = client.post(
         "/v1/admin/policy",
