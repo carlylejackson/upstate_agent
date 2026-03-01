@@ -16,3 +16,8 @@ class ApproveKBRequest(BaseModel):
     chunk_ids: list[str]
     approved: bool = True
     updated_by: str = "admin"
+
+
+class RetentionRunRequest(BaseModel):
+    dry_run: bool = True
+    updated_by: str = "admin"

@@ -20,6 +20,18 @@ class Settings(BaseSettings):
 
     admin_api_key: str = "change-me"
     phi_redaction_enabled: bool = True
+    compliance_mode: str = "non_phi"
+    redact_stored_messages: bool = True
+    non_phi_handoff_message: str = (
+        "Thanks for reaching out. For privacy and safety, I can't handle clinical or health-specific "
+        "details in this chat right now. I can connect you with our team for direct follow-up."
+    )
+    non_phi_handoff_message_sms: str = (
+        "For privacy, please do not share health details by text. "
+        "Reply with your callback number and preferred time, and our team will follow up."
+    )
+    retention_days_messages: int = 30
+    retention_days_escalations: int = 90
 
     twilio_account_sid: str | None = None
     twilio_auth_token: str | None = None

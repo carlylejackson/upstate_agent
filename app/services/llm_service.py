@@ -72,11 +72,17 @@ class LLMService:
         intent: str,
         references: list[dict],
         policies: dict[str, str],
+        channel: str = "web",
     ) -> str:
         if intent == "appointment_request":
+            if channel == "sms":
+                return (
+                    "I can help with that. Reply with your first name, best callback number, and preferred "
+                    "appointment time. By replying with contact details, you consent to staff follow-up."
+                )
             return (
                 "I can help with that. Please share your name, best callback number, and preferred appointment time. "
-                "With your consent, I will send this to our front desk for follow-up."
+                "By sharing contact details, you consent to front desk follow-up."
             )
 
         if intent == "clinical_risk_or_emergency":
